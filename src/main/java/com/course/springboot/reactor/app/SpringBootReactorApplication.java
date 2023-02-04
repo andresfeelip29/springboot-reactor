@@ -4,6 +4,8 @@ import com.course.springboot.reactor.app.Entities.CommentEntity;
 import com.course.springboot.reactor.app.Entities.UserCommentEntity;
 import com.course.springboot.reactor.app.Entities.UserEntity;
 import org.apache.commons.logging.Log;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -43,8 +45,61 @@ public class SpringBootReactorApplication implements CommandLineRunner {
         //ExampleTimeIntervalDelay();
         //ExampleDelayElements();
         //ExampleInfinityInterval();
-        ExampleCreateIntervaObservable();
+        //ExampleCreateIntervaObservable();
+        ExampleBackPressureFrom2();
 
+    }
+
+    //------------------------------------------- Example backpressure------------------------------------------------------
+
+    public void ExampleBackPressureFrom2() {
+
+        Flux.range(1, 10)
+                .log()
+                .limitRate(2)
+                .subscribe();
+    }
+
+
+    public void ExampleBackPressure() {
+
+        Flux.range(1, 10)
+                .log()
+                .subscribe(new Subscriber<Integer>() {
+
+                    private Subscription subscription;
+
+                    private Integer limint = 2;
+
+                    private Integer elementConsumer = 0;
+
+                    @Override
+                    public void onSubscribe(Subscription subscription) {
+                        this.subscription = subscription;
+                        subscription.request(limint);
+
+                    }
+
+                    @Override
+                    public void onNext(Integer element) {
+                        log.info(element.toString());
+                        elementConsumer++;
+                        if (elementConsumer == limint) {
+                            elementConsumer = 0;
+                            subscription.request(limint);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
     }
 
     //------------------------------------------- Example create a flow from cero, using .complete() for finish de flow, doOnComplete for emitter response to complete de flow ------------------------------------------------------
@@ -59,12 +114,12 @@ public class SpringBootReactorApplication implements CommandLineRunner {
                         @Override
                         public void run() {
                             emmitter.next(++count);
-                            if (count == 10){
+                            if (count == 10) {
                                 time.cancel();
                                 emmitter.complete();
                             }
 
-                            if (count == 5){
+                            if (count == 5) {
                                 time.cancel();
                                 emmitter.error(new InterruptedException("Counter equals 5"));
                             }
